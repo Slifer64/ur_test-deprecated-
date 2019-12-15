@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+
+<launch>
+
+    <!-- optoforce -->
+    <include file="$(find ur10_robot)/launch/optoforce.launch" />
+
+    <!-- ur10 controller -->
+    <include file="$(find ur10_robot)/launch/ur10_controller.launch" />
+
+    <!-- ur10 urdf -->
+    <include file="$(find ur10_robot)/launch/rviz.launch" />
+
+</launch>

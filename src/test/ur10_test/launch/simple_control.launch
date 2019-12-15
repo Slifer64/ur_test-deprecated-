@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+
+<launch>
+
+  <!-- Start ur10_controller -->
+  <include file="$(find ur10_robot)/launch/ur10_controller.launch" />
+
+  <!-- Start rviz to visualize the robot's urdf model -->
+  <include file="$(find ur10_robot)/launch/ur10_urdf.launch" />
+
+    <!-- test node -->
+    <node pkg="ur10_test" type="simple_control" name="simple_control_node"
+          output="screen" cwd="node">
+    </node>
+
+</launch>
