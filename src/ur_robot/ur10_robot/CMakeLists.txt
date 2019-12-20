@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   io_lib
   ur_kinematics
+  ur_modern_driver
 )
 
 ###################################
@@ -19,7 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 ###################################
 catkin_package(
   INCLUDE_DIRS include
-  CATKIN_DEPENDS roscpp
+  CATKIN_DEPENDS roscpp ur_modern_driver
   DEPENDS
 )
 
@@ -56,6 +57,7 @@ target_link_libraries(ur10-robot
   armadillo
   io-lib
   ur10_kin
+  ur_modern_driver
 )
 
 

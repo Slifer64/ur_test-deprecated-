@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <functional>
 #include <time.h>
 
 #include "ros/ros.h"
@@ -47,6 +48,7 @@ namespace ur_
 class RosWrapper
 {
 protected:
+  bool keep_alive;
 	UrDriver *robot_;
 	std::condition_variable rt_msg_cond_;
 	std::condition_variable msg_cond_;
@@ -60,8 +62,8 @@ protected:
 	ros::Subscriber urscript_sub_;
 	ros::ServiceServer io_srv_;
 	ros::ServiceServer payload_srv_;
-	std::thread* rt_publish_thread_;
-	std::thread* mb_publish_thread_;
+	std::thread rt_publish_thread_;
+	std::thread mb_publish_thread_;
 	double io_flag_delay_;
 	double max_velocity_;
 	std::vector<double> joint_offsets_;

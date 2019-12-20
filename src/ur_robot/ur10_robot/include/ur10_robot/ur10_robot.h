@@ -22,6 +22,9 @@
 
 #include <armadillo>
 
+#include <ur_modern_driver/utils.h>
+#include <ur_modern_driver/ur_ros_wrapper.h>
+
 namespace ur10_
 {
 
@@ -103,7 +106,7 @@ class Robot
 
 public:
   /** Constructor. */
-  Robot();
+  Robot(const std::string &robot_ip="localhost", int reverse_port=50001);
 
   /** Destructor. */
   ~Robot();
@@ -294,6 +297,12 @@ public:
 
 private:
 
+  void runUrDriver();
+  std::thread ur_driver_thr;
+  std::string robot_ip;
+  int reverse_port;
+  ur_::Semaphore shutdown_sem;
+
   std::string ur_script; ///< string that can store an entire URscript file.
 
   double cycle; ///< robot's control cycle.
@@ -387,6 +396,7 @@ private:
   static arma::mat get5thOrder(double t, arma::vec p0, arma::vec pT, double totalTime);
 
 };
+
 
 } // namespace ur10_
 

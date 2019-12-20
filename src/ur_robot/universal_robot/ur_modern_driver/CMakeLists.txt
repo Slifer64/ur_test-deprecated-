@@ -162,12 +162,31 @@ set(${PROJECT_NAME}_SOURCES
     )
 add_executable(ur_driver src/run_ur_driver.cpp ${${PROJECT_NAME}_SOURCES})
 
+
 ## Add cmake target dependencies of the executable
 ## same as for the library above
  add_dependencies(ur_driver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ur_driver
+  ur_hardware_interface
+  ${catkin_LIBRARIES}
+ )
+
+ #############
+ ## LIBRARY ##
+ #############
+
+ add_library(ur_modern_driver
+   ${${PROJECT_NAME}_SOURCES}
+ )
+
+ add_dependencies(ur_modern_driver
+   ${${PROJECT_NAME}_EXPORTED_TARGETS}
+   ${catkin_EXPORTED_TARGETS}
+ )
+
+ target_link_libraries(ur_modern_driver
   ur_hardware_interface
   ${catkin_LIBRARIES}
  )

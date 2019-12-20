@@ -4,9 +4,10 @@ namespace ur_
 {
 
 RosWrapper::RosWrapper(const std::string &robot_ip_address, int reverse_port):
-spinner(3),
-as_(nh_, "follow_joint_trajectory", boost::bind(&RosWrapper::goalCB, this, _1), boost::bind(&RosWrapper::cancelCB, this, _1), false)
+spinner(3), as_(nh_, "follow_joint_trajectory", boost::bind(&RosWrapper::goalCB, this, _1), boost::bind(&RosWrapper::cancelCB, this, _1), false)
 {
+  keep_alive = true;
+
 	bool use_sim_time = false;
 	std::string host = robot_ip_address;
 
@@ -131,10 +132,10 @@ void RosWrapper::init(std::string host, int reverse_port)
       print_debug(buf);
   }
 
-	if (robot_->start()) {
+	if (robot_->start())
+	{
 		if (use_ros_control_) {
-			ros_control_thread_ = new std::thread(
-					boost::bind(&RosWrapper::rosControlLoop, this));
+			ros_control_thread_ = new std::thread( boost::bind(&RosWrapper::rosControlLoop, this));
 			print_debug("The control thread for this driver has been started");
 		} else {
 			//start actionserver
@@ -142,10 +143,10 @@ void RosWrapper::init(std::string host, int reverse_port)
 			as_.start();
 
 			//subscribe to the data topic of interest
-			rt_publish_thread_ = new std::thread(boost::bind(&RosWrapper::publishRTMsg, this));
+			rt_publish_thread_ = std::thread(std::bind(&RosWrapper::publishRTMsg, this));
 			print_debug("The action server for this driver has been started");
 		}
-		mb_publish_thread_ = new std::thread(boost::bind(&RosWrapper::publishMbMsg, this));
+		// mb_publish_thread_ = std::thread(std::bind(&RosWrapper::publishMbMsg, this));
 		speed_sub_ = nh_.subscribe("ur_driver/joint_speed", 1, &RosWrapper::speedInterface, this);
 		urscript_sub_ = nh_.subscribe("ur_driver/URScript", 1, &RosWrapper::urscriptInterface, this);
 
@@ -157,13 +158,14 @@ void RosWrapper::init(std::string host, int reverse_port)
 void RosWrapper::halt()
 {
 	robot_->halt();
-	rt_publish_thread_->join();
+  keep_alive = false;
+  std::cerr << "keep_alive = " << keep_alive << "\n";
+  if (rt_publish_thread_.joinable()) rt_publish_thread_.join();
+  std::cerr << "rt_publish_thread_.join(): [DONE]!\n";
 }
 
 // private
-void RosWrapper::trajThread(std::vector<double> timestamps,
-		std::vector<std::vector<double> > positions,
-		std::vector<std::vector<double> > velocities)
+void RosWrapper::trajThread(std::vector<double> timestamps, std::vector<std::vector<double> > positions, std::vector<std::vector<double> > velocities)
 {
 
 	robot_->doTraj(timestamps, positions, velocities);
@@ -174,9 +176,7 @@ void RosWrapper::trajThread(std::vector<double> timestamps,
 	}
 }
 
-void RosWrapper::goalCB(
-		actionlib::ServerGoalHandle<
-				control_msgs::FollowJointTrajectoryAction> gh)
+void RosWrapper::goalCB(actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> gh)
 {
 	std::string buf;
 	print_info("on_goal");
@@ -319,9 +319,7 @@ void RosWrapper::goalCB(
 			velocities).detach();
 }
 
-void RosWrapper::cancelCB(
-		actionlib::ServerGoalHandle<
-				control_msgs::FollowJointTrajectoryAction> gh)
+void RosWrapper::cancelCB(actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> gh)
 {
 	// set the action state to preempted
 	print_info("on_cancel");
@@ -359,8 +357,7 @@ bool RosWrapper::setIO(ur_msgs::SetIORequest& req, ur_msgs::SetIOResponse& resp)
 	return resp.success;
 }
 
-bool RosWrapper::setPayload(ur_msgs::SetPayloadRequest& req,
-		ur_msgs::SetPayloadResponse& resp)
+bool RosWrapper::setPayload(ur_msgs::SetPayloadRequest& req, ur_msgs::SetPayloadResponse& resp)
 {
 	if (robot_->setPayload(req.payload))
 		resp.success = true;
@@ -603,34 +600,26 @@ void RosWrapper::rosControlLoop()
 
 void RosWrapper::publishRTMsg()
 {
-	ros::Publisher joint_pub = nh_.advertise<sensor_msgs::JointState>(
-			"joint_states", 1);
-	ros::Publisher wrench_pub = nh_.advertise<geometry_msgs::WrenchStamped>(
-			"wrench", 1);
-      ros::Publisher tool_vel_pub = nh_.advertise<geometry_msgs::TwistStamped>("tool_velocity", 1);
-      static tf::TransformBroadcaster br;
-	while (ros::ok()) {
+	ros::Publisher joint_pub = nh_.advertise<sensor_msgs::JointState>("joint_states", 1);
+	ros::Publisher wrench_pub = nh_.advertise<geometry_msgs::WrenchStamped>("wrench", 1);
+  ros::Publisher tool_vel_pub = nh_.advertise<geometry_msgs::TwistStamped>("tool_velocity", 1);
+  static tf::TransformBroadcaster br;
+	while (keep_alive)
+	{
 		sensor_msgs::JointState joint_msg;
 		joint_msg.name = robot_->getJointNames();
 		geometry_msgs::WrenchStamped wrench_msg;
-          geometry_msgs::PoseStamped tool_pose_msg;
+    geometry_msgs::PoseStamped tool_pose_msg;
 		std::mutex msg_lock; // The values are locked for reading in the class, so just use a dummy mutex
 		std::unique_lock<std::mutex> locker(msg_lock);
-		while (!robot_->rt_interface_->robot_state_->getDataPublished()) {
-			rt_msg_cond_.wait(locker);
-		}
+		while (!robot_->rt_interface_->robot_state_->getDataPublished()) rt_msg_cond_.wait(locker);
 		joint_msg.header.stamp = ros::Time::now();
-		joint_msg.position =
-				robot_->rt_interface_->robot_state_->getQActual();
-		for (unsigned int i = 0; i < joint_msg.position.size(); i++) {
-			joint_msg.position[i] += joint_offsets_[i];
-		}
-		joint_msg.velocity =
-				robot_->rt_interface_->robot_state_->getQdActual();
+		joint_msg.position = robot_->rt_interface_->robot_state_->getQActual();
+		for (unsigned int i = 0; i < joint_msg.position.size(); i++) joint_msg.position[i] += joint_offsets_[i];
+		joint_msg.velocity = robot_->rt_interface_->robot_state_->getQdActual();
 		joint_msg.effort = robot_->rt_interface_->robot_state_->getIActual();
 		joint_pub.publish(joint_msg);
-		std::vector<double> tcp_force =
-				robot_->rt_interface_->robot_state_->getTcpForce();
+		std::vector<double> tcp_force = robot_->rt_interface_->robot_state_->getTcpForce();
 		wrench_msg.header.stamp = joint_msg.header.stamp;
 		wrench_msg.wrench.force.x = tcp_force[0];
 		wrench_msg.wrench.force.y = tcp_force[1];
@@ -640,40 +629,36 @@ void RosWrapper::publishRTMsg()
 		wrench_msg.wrench.torque.z = tcp_force[5];
 		wrench_pub.publish(wrench_msg);
 
-          // Tool vector: Actual Cartesian coordinates of the tool: (x,y,z,rx,ry,rz), where rx, ry and rz is a rotation vector representation of the tool orientation
-          std::vector<double> tool_vector_actual = robot_->rt_interface_->robot_state_->getToolVectorActual();
+    // Tool vector: Actual Cartesian coordinates of the tool: (x,y,z,rx,ry,rz), where rx, ry and rz is a rotation vector representation of the tool orientation
+    std::vector<double> tool_vector_actual = robot_->rt_interface_->robot_state_->getToolVectorActual();
 
-          //Create quaternion
-          tf::Quaternion quat;
-          double rx = tool_vector_actual[3];
-          double ry = tool_vector_actual[4];
-          double rz = tool_vector_actual[5];
-          double angle = std::sqrt(std::pow(rx,2) + std::pow(ry,2) + std::pow(rz,2));
-          if (angle < 1e-16) {
-              quat.setValue(0, 0, 0, 1);
-          } else {
-              quat.setRotation(tf::Vector3(rx/angle, ry/angle, rz/angle), angle);
-          }
+    //Create quaternion
+    tf::Quaternion quat;
+    double rx = tool_vector_actual[3];
+    double ry = tool_vector_actual[4];
+    double rz = tool_vector_actual[5];
+    double angle = std::sqrt(std::pow(rx,2) + std::pow(ry,2) + std::pow(rz,2));
+    if (angle < 1e-16) quat.setValue(0, 0, 0, 1);
+    else quat.setRotation(tf::Vector3(rx/angle, ry/angle, rz/angle), angle);
 
-          //Create and broadcast transform
-          tf::Transform transform;
-          transform.setOrigin(tf::Vector3(tool_vector_actual[0], tool_vector_actual[1], tool_vector_actual[2]));
-          transform.setRotation(quat);
-          br.sendTransform(tf::StampedTransform(transform, joint_msg.header.stamp, base_frame_, tool_frame_));
+    //Create and broadcast transform
+    tf::Transform transform;
+    transform.setOrigin(tf::Vector3(tool_vector_actual[0], tool_vector_actual[1], tool_vector_actual[2]));
+    transform.setRotation(quat);
+    br.sendTransform(tf::StampedTransform(transform, joint_msg.header.stamp, base_frame_, tool_frame_));
 
-          //Publish tool velocity
-          std::vector<double> tcp_speed =
-                  robot_->rt_interface_->robot_state_->getTcpSpeedActual();
-          geometry_msgs::TwistStamped tool_twist;
-          tool_twist.header.frame_id = base_frame_;
-          tool_twist.header.stamp = joint_msg.header.stamp;
-          tool_twist.twist.linear.x = tcp_speed[0];
-          tool_twist.twist.linear.y = tcp_speed[1];
-          tool_twist.twist.linear.z = tcp_speed[2];
-          tool_twist.twist.angular.x = tcp_speed[3];
-          tool_twist.twist.angular.y = tcp_speed[4];
-          tool_twist.twist.angular.z = tcp_speed[5];
-          tool_vel_pub.publish(tool_twist);
+    //Publish tool velocity
+    std::vector<double> tcp_speed = robot_->rt_interface_->robot_state_->getTcpSpeedActual();
+    geometry_msgs::TwistStamped tool_twist;
+    tool_twist.header.frame_id = base_frame_;
+    tool_twist.header.stamp = joint_msg.header.stamp;
+    tool_twist.twist.linear.x = tcp_speed[0];
+    tool_twist.twist.linear.y = tcp_speed[1];
+    tool_twist.twist.linear.z = tcp_speed[2];
+    tool_twist.twist.angular.x = tcp_speed[3];
+    tool_twist.twist.angular.y = tcp_speed[4];
+    tool_twist.twist.angular.z = tcp_speed[5];
+    tool_vel_pub.publish(tool_twist);
 
 		robot_->rt_interface_->robot_state_->setDataPublished();
 	}
@@ -682,29 +667,24 @@ void RosWrapper::publishRTMsg()
 void RosWrapper::publishMbMsg()
 {
 	bool warned = false;
-	ros::Publisher io_pub = nh_.advertise<ur_msgs::IOStates>(
-			"ur_driver/io_states", 1);
+	ros::Publisher io_pub = nh_.advertise<ur_msgs::IOStates>("ur_driver/io_states", 1);
 
-	while (ros::ok()) {
+	while (ros::ok())
+	{
 		ur_msgs::IOStates io_msg;
 		std::mutex msg_lock; // The values are locked for reading in the class, so just use a dummy mutex
 		std::unique_lock<std::mutex> locker(msg_lock);
-		while (!robot_->sec_interface_->robot_state_->getNewDataAvailable()) {
-			msg_cond_.wait(locker);
-		}
+		while (!robot_->sec_interface_->robot_state_->getNewDataAvailable()) msg_cond_.wait(locker);
 		int i_max = 10;
 		if (robot_->sec_interface_->robot_state_->getVersion() > 3.0)
 			i_max = 18; // From version 3.0, there are up to 18 inputs and outputs
-		for (unsigned int i = 0; i < i_max; i++) {
+		for (unsigned int i = 0; i < i_max; i++)
+		{
 			ur_msgs::Digital digi;
 			digi.pin = i;
-			digi.state =
-					((robot_->sec_interface_->robot_state_->getDigitalInputBits()
-							& (1 << i)) >> i);
+			digi.state = ((robot_->sec_interface_->robot_state_->getDigitalInputBits() & (1 << i)) >> i);
 			io_msg.digital_in_states.push_back(digi);
-			digi.state =
-					((robot_->sec_interface_->robot_state_->getDigitalOutputBits()
-							& (1 << i)) >> i);
+			digi.state = ((robot_->sec_interface_->robot_state_->getDigitalOutputBits() & (1 << i)) >> i);
 			io_msg.digital_out_states.push_back(digi);
 		}
 		ur_msgs::Analog ana;
@@ -724,15 +704,18 @@ void RosWrapper::publishMbMsg()
 		io_pub.publish(io_msg);
 
 		if (robot_->sec_interface_->robot_state_->isEmergencyStopped()
-				or robot_->sec_interface_->robot_state_->isProtectiveStopped()) {
-			if (robot_->sec_interface_->robot_state_->isEmergencyStopped()
-					and !warned) {
+				or robot_->sec_interface_->robot_state_->isProtectiveStopped())
+		{
+			if (robot_->sec_interface_->robot_state_->isEmergencyStopped() and !warned)
+			{
 				print_error("Emergency stop pressed!");
-			} else if (robot_->sec_interface_->robot_state_->isProtectiveStopped()
-					and !warned) {
+			}
+			else if (robot_->sec_interface_->robot_state_->isProtectiveStopped() and !warned)
+			{
 				print_error("Robot is protective stopped!");
 			}
-			if (has_goal_) {
+			if (has_goal_)
+			{
 				print_error("Aborting trajectory");
 				robot_->stopTraj();
 				result_.error_code = result_.SUCCESSFUL;
@@ -741,8 +724,8 @@ void RosWrapper::publishMbMsg()
 				has_goal_ = false;
 			}
 			warned = true;
-		} else
-			warned = false;
+		}
+		else warned = false;
 
 		robot_->sec_interface_->robot_state_->finishedReading();
 

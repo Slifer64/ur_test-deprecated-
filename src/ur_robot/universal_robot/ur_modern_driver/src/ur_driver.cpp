@@ -23,9 +23,8 @@ UrDriver::UrDriver(std::condition_variable& rt_msg_cond,
 		unsigned int reverse_port, double servoj_time,
 		unsigned int safety_count_max, double max_time_step, double min_payload,
 		double max_payload, double servoj_lookahead_time, double servoj_gain) :
-		REVERSE_PORT_(reverse_port), maximum_time_step_(max_time_step), minimum_payload_(
-				min_payload), maximum_payload_(max_payload), servoj_time_(
-				servoj_time), servoj_lookahead_time_(servoj_lookahead_time), servoj_gain_(servoj_gain)
+		REVERSE_PORT_(reverse_port), maximum_time_step_(max_time_step), minimum_payload_(min_payload),
+		maximum_payload_(max_payload), servoj_time_(servoj_time), servoj_lookahead_time_(servoj_lookahead_time), servoj_gain_(servoj_gain)
 {
 	char buffer[256];
 	struct sockaddr_in serv_addr;
@@ -34,29 +33,31 @@ UrDriver::UrDriver(std::condition_variable& rt_msg_cond,
 	firmware_version_ = 0;
 	reverse_connected_ = false;
 	executing_traj_ = false;
-	rt_interface_ = new UrRealtimeCommunication(rt_msg_cond, host,
-			safety_count_max);
+	rt_interface_ = new UrRealtimeCommunication(rt_msg_cond, host, safety_count_max);
 	new_sockfd_ = -1;
 	sec_interface_ = new UrCommunication(msg_cond, host);
 
 	incoming_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-	if (incoming_sockfd_ < 0) {
-		print_fatal("ERROR opening socket for reverse communication");
-	}
+	if (incoming_sockfd_ < 0) print_fatal("ERROR opening socket for reverse communication");
 	bzero((char *) &serv_addr, sizeof(serv_addr));
 
 	serv_addr.sin_family = AF_INET;
 	serv_addr.sin_addr.s_addr = INADDR_ANY;
 	serv_addr.sin_port = htons(REVERSE_PORT_);
 	flag = 1;
-	setsockopt(incoming_sockfd_, IPPROTO_TCP, TCP_NODELAY, (char *) &flag,
-			sizeof(int));
+	setsockopt(incoming_sockfd_, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
 	setsockopt(incoming_sockfd_, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(int));
-	if (bind(incoming_sockfd_, (struct sockaddr *) &serv_addr,
-			sizeof(serv_addr)) < 0) {
+	if (bind(incoming_sockfd_, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+	{
 		print_fatal("ERROR on binding socket for reverse communication");
 	}
 	listen(incoming_sockfd_, 5);
+}
+
+UrDriver::~UrDriver()
+{
+  delete rt_interface_;
+  delete sec_interface_;
 }
 
 std::vector<double> UrDriver::interp_cubic(double t, double T,
@@ -272,7 +273,8 @@ bool UrDriver::start()
 
 void UrDriver::halt()
 {
-	if (executing_traj_) {
+	if (executing_traj_)
+	{
 		UrDriver::stopTraj();
 	}
 	sec_interface_->halt();
@@ -280,8 +282,7 @@ void UrDriver::halt()
 	close(incoming_sockfd_);
 }
 
-void UrDriver::setSpeed(double q0, double q1, double q2, double q3, double q4,
-		double q5, double acc)
+void UrDriver::setSpeed(double q0, double q1, double q2, double q3, double q4, double q5, double acc)
 {
 	rt_interface_->setSpeed(q0, q1, q2, q3, q4, q5, acc);
 }

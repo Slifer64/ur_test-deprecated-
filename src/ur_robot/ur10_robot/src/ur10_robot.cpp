@@ -26,8 +26,12 @@ namespace ur10_
     return rotm;
   }
 
-  Robot::Robot():spinner(0)
+  Robot::Robot(const std::string &robot_ip, int reverse_port):spinner(0)
   {
+    this->robot_ip = robot_ip;
+    this->reverse_port = reverse_port;
+    runUrDriver();
+
     parseConfigFile();
 
     this->pub2ur10 = n.advertise<std_msgs::String>(this->command_ur10_topic, 1);
@@ -48,6 +52,25 @@ namespace ur10_
 
     waitNextCycle();
     time_offset = rSt.timestamp_sec;
+
+  }
+
+  void Robot::runUrDriver()
+  {
+    ur_::Semaphore sem;
+
+
+    ur_driver_thr = std::thread( [this, &sem]()
+    {
+    	ur_::RosWrapper interface(this->robot_ip, this->reverse_port);
+      sem.notify();
+
+      shutdown_sem.wait();
+
+    	ros::waitForShutdown();
+    });
+
+    sem.wait();
 
   }
 
@@ -78,6 +101,9 @@ namespace ur10_
 
   Robot::~Robot()
   {
+    shutdown_sem.notify();
+
+    if (ur_driver_thr.joinable()) ur_driver_thr.join();
     if (printRobotState_thread.joinable()) printRobotState_thread.join();
   }
 
@@ -490,7 +516,7 @@ namespace ur10_
     arma::vec qref_dot;
 
     double t = 0.0;
-    double click = 0.1;
+    double click = 0.0;
     // the main while
     while (t < duration)
     {
@@ -516,6 +542,11 @@ namespace ur10_
 
       q = this->getJointPosition();
     }
+
+    std::cerr << "t = " << t << "\n";
+    std::cerr << "qref = " << qref.t() << "\n";
+    std::cerr << "q = " << q.t() << "\n";
+
     // reset last known robot mode
     this->setMode(prev_mode);
 

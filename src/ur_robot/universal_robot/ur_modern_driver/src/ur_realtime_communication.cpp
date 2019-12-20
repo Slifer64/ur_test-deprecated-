@@ -18,9 +18,9 @@
 
 #include "ur_modern_driver/ur_realtime_communication.h"
 
-UrRealtimeCommunication::UrRealtimeCommunication(
-		std::condition_variable& msg_cond, std::string host,
-		unsigned int safety_count_max)
+#include <ur_modern_driver/utils.h>
+
+UrRealtimeCommunication::UrRealtimeCommunication(std::condition_variable& msg_cond, std::string host, unsigned int safety_count_max)
 {
 	robot_state_ = new RobotStateRT(msg_cond);
 	bzero((char *) &serv_addr_, sizeof(serv_addr_));
@@ -44,6 +44,13 @@ UrRealtimeCommunication::UrRealtimeCommunication(
 	keepalive_ = false;
 	safety_count_ = safety_count_max + 1;
 	safety_count_max_ = safety_count_max;
+}
+
+UrRealtimeCommunication::~UrRealtimeCommunication()
+{
+  halt();
+  std::cout << "==========> Destructing!!!!\n";
+  std::cerr << "==========> Destructing!!!!\n";
 }
 
 bool UrRealtimeCommunication::start()
@@ -84,41 +91,27 @@ bool UrRealtimeCommunication::start()
 void UrRealtimeCommunication::halt()
 {
 	keepalive_ = false;
-	comThread_.join();
+  // delete robot_state_;
+	if (comThread_.joinable()) comThread_.join();
 }
 
-void UrRealtimeCommunication::addCommandToQueue(std::string inp) {
+void UrRealtimeCommunication::addCommandToQueue(std::string inp)
+{
 	int bytes_written;
-	if (inp.back() != '\n') {
-		inp.append("\n");
-	}
-	if (connected_)
-		bytes_written = write(sockfd_, inp.c_str(), inp.length());
-	else
-		print_error("Could not send command \"" +inp + "\". The robot is not connected! Command is discarded" );
+	if (inp.back() != '\n') inp.append("\n");
+	if (connected_) bytes_written = write(sockfd_, inp.c_str(), inp.length());
+	else print_error("Could not send command \"" +inp + "\". The robot is not connected! Command is discarded" );
 }
 
-void UrRealtimeCommunication::setSpeed(double q0, double q1, double q2,
-		double q3, double q4, double q5, double acc)
+void UrRealtimeCommunication::setSpeed(double q0, double q1, double q2, double q3, double q4, double q5, double acc)
 {
 	char cmd[1024];
-	if( robot_state_->getVersion() >= 3.3 ) {
-		sprintf(cmd,
-				"speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f, 0.008)\n",
-				q0, q1, q2, q3, q4, q5, acc);
-	}
-	else if( robot_state_->getVersion() >= 3.1 ) {
-		sprintf(cmd,
-				"speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f)\n",
-				q0, q1, q2, q3, q4, q5, acc);
-	}
-	else {
-		sprintf(cmd,
-				"speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f, 0.02)\n",
-				q0, q1, q2, q3, q4, q5, acc);
-	}
+	if( robot_state_->getVersion() >= 3.3 ) sprintf(cmd, "speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f, 0.008)\n", q0, q1, q2, q3, q4, q5, acc);
+	else if( robot_state_->getVersion() >= 3.1 ) sprintf(cmd, "speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f)\n", q0, q1, q2, q3, q4, q5, acc);
+	else sprintf(cmd, "speedj([%1.5f, %1.5f, %1.5f, %1.5f, %1.5f, %1.5f], %f, 0.02)\n", q0, q1, q2, q3, q4, q5, acc);
 	addCommandToQueue((std::string) (cmd));
-	if (q0 != 0. or q1 != 0. or q2 != 0. or q3 != 0. or q4 != 0. or q5 != 0.) {
+	if (q0 != 0. or q1 != 0. or q2 != 0. or q3 != 0. or q4 != 0. or q5 != 0.)
+	{
 		//If a joint speed is set, make sure we stop it again after some time if the user doesn't
 		safety_count_ = 0;
 	}
@@ -135,61 +128,93 @@ void UrRealtimeCommunication::run()
 	FD_SET(sockfd_, &readfds);
 	print_debug("Realtime port: Got connection");
 	connected_ = true;
-	while (keepalive_) {
-		while (connected_ && keepalive_) {
+
+	ur_::Timer timer;
+	std::vector<double> times_vec;
+
+	while (keepalive_)
+	{
+		while (connected_ && keepalive_)
+		{
+      timer.start();
+
 			timeout.tv_sec = 0; //do this each loop as selects modifies timeout
 			timeout.tv_usec = 500000; // timeout of 0.5 sec
 			select(sockfd_ + 1, &readfds, NULL, NULL, &timeout);
 			bytes_read = read(sockfd_, buf, 2048);
-			if (bytes_read > 0) {
-				setsockopt(sockfd_, IPPROTO_TCP, TCP_QUICKACK, (char *) &flag_,
-						sizeof(int));
+			if (bytes_read > 0)
+			{
+				setsockopt(sockfd_, IPPROTO_TCP, TCP_QUICKACK, (char *) &flag_, sizeof(int));
 				robot_state_->unpack(buf);
-				if (safety_count_ == safety_count_max_) {
-					setSpeed(0., 0., 0., 0., 0., 0.);
-				}
+				if (safety_count_ == safety_count_max_) setSpeed(0., 0., 0., 0., 0., 0.);
 				safety_count_ += 1;
-			} else {
+			}
+			else
+      {
+        std::cerr << "========> Ok 8\n";
 				connected_ = false;
 				close(sockfd_);
 			}
+
+			double elaps_time = timer.elapsedMicroSec();
+			times_vec.push_back(elaps_time);
+
+			// std::cerr << "elaps t = " << elaps_time/1000 << " ms\n";
 		}
-		if (keepalive_) {
+
+    std::cerr << "========> Ok 15\n";
+
+		if (keepalive_)
+		{
+      std::cerr << "========> Ok 22\n";
+
 			//reconnect
 			print_warning("Realtime port: No connection. Is controller crashed? Will try to reconnect in 10 seconds...");
 			sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
-			if (sockfd_ < 0) {
-				print_fatal("ERROR opening socket");
-			}
+			if (sockfd_ < 0) print_fatal("ERROR opening socket");
 			flag_ = 1;
-			setsockopt(sockfd_, IPPROTO_TCP, TCP_NODELAY, (char *) &flag_,
-					sizeof(int));
-			setsockopt(sockfd_, IPPROTO_TCP, TCP_QUICKACK, (char *) &flag_,
-					sizeof(int));
-
-			setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, (char *) &flag_,
-					sizeof(int));
+			setsockopt(sockfd_, IPPROTO_TCP, TCP_NODELAY, (char *) &flag_, sizeof(int));
+			setsockopt(sockfd_, IPPROTO_TCP, TCP_QUICKACK, (char *) &flag_, sizeof(int));
+			setsockopt(sockfd_, SOL_SOCKET, SO_REUSEADDR, (char *) &flag_, sizeof(int));
 			fcntl(sockfd_, F_SETFL, O_NONBLOCK);
-			while (keepalive_ && !connected_) {
+			while (keepalive_ && !connected_)
+			{
 				std::this_thread::sleep_for(std::chrono::seconds(10));
 				fd_set writefds;
-
-				connect(sockfd_, (struct sockaddr *) &serv_addr_,
-						sizeof(serv_addr_));
+				connect(sockfd_, (struct sockaddr *) &serv_addr_, sizeof(serv_addr_));
 				FD_ZERO(&writefds);
 				FD_SET(sockfd_, &writefds);
 				select(sockfd_ + 1, NULL, &writefds, NULL, NULL);
 				unsigned int flag_len;
 				getsockopt(sockfd_, SOL_SOCKET, SO_ERROR, &flag_, &flag_len);
-				if (flag_ < 0) {
+				if (flag_ < 0)
+				{
 					print_error("Error re-connecting to RT port 30003. Is controller started? Will try to reconnect in 10 seconds...");
-				} else {
+				} else
+        {
 					connected_ = true;
 					print_info("Realtime port: Reconnected");
 				}
 			}
 		}
 	}
+
+	int N_times = times_vec.size();
+	double mean_time=0, max_time = 0, min_time = 1e12;
+  for (int i=0;i<N_times; i++)
+  {
+    double elaps_time = times_vec[i];
+    mean_time += elaps_time;
+    if (elaps_time > max_time) max_time = elaps_time;
+    if (elaps_time < min_time) min_time = elaps_time;
+  }
+  mean_time /= N_times;
+  std::cerr << "======================================\n";
+  std::cerr << "mean_time: " << mean_time/1000 << " ms\n";
+  std::cerr << "min_time: " << min_time/1000 << " ms\n";
+  std::cerr << "max_time: " << max_time/1000 << " ms\n";
+  std::cerr << "======================================\n";
+
 	setSpeed(0., 0., 0., 0., 0., 0.);
 	close(sockfd_);
 }

@@ -47,6 +47,13 @@ SET(BUILD_LIBS
   ur10-robot
 )
 
+# *************************************************
+# *************************************************
+
+add_executable(test_delay src/test_delay.cpp ${INCLUDE_LIST} ${SRC_LIST} )
+add_dependencies(test_delay ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(test_delay ${BUILD_LIBS} )
+
 
 # *************************************************
 # *************************************************

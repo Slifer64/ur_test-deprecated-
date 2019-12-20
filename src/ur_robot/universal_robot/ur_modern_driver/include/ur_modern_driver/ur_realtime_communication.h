@@ -61,8 +61,8 @@ public:
 	bool connected_;
 	RobotStateRT* robot_state_;
 
-	UrRealtimeCommunication(std::condition_variable& msg_cond, std::string host,
-			unsigned int safety_count_max = 12);
+	UrRealtimeCommunication(std::condition_variable& msg_cond, std::string host, unsigned int safety_count_max = 12);
+  ~UrRealtimeCommunication();
 	bool start();
 	void halt();
 	void setSpeed(double q0, double q1, double q2, double q3, double q4,
