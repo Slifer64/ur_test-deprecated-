@@ -18,7 +18,7 @@
 
 #include "ur_modern_driver/robot_state_RT.h"
 
-RobotStateRT::RobotStateRT(std::condition_variable& msg_cond)
+RobotStateRT::RobotStateRT()
 {
 	version_ = 0.0;
 	time_ = 0.0;
@@ -51,7 +51,6 @@ RobotStateRT::RobotStateRT(std::condition_variable& msg_cond)
 	v_actual_.assign(6, 0.0);
 	data_published_ = false;
 	controller_updated_ = false;
-	pMsg_cond_ = &msg_cond;
 }
 
 RobotStateRT::~RobotStateRT()
@@ -59,7 +58,6 @@ RobotStateRT::~RobotStateRT()
 	/* Make sure nobody is waiting after this thread is destroyed */
 	data_published_ = true;
 	controller_updated_ = true;
-	pMsg_cond_->notify_all();
 }
 
 void RobotStateRT::setDataPublished()
@@ -501,6 +499,5 @@ void RobotStateRT::unpack(uint8_t * buf)
 	val_lock_.unlock();
 	controller_updated_ = true;
 	data_published_ = true;
-	pMsg_cond_->notify_all();
 
 }

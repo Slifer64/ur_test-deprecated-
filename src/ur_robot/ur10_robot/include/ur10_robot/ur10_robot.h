@@ -316,11 +316,6 @@ private:
 
   uint64_t time_offset;
 
-
-  std::mutex robotState_mtx;
-  std::thread printRobotState_thread;
-  bool printRobotStateThread_running;
-
   RobotState rSt; ///< Robot state struct.
   LoggedData log_data; ///< Log data struct.
 
@@ -374,8 +369,6 @@ private:
 
   /** Callback for reading the end-effector's pose. */
   void readTaskPoseCallback();
-
-  void printRobotStateThreadFun(double freq=50, std::ostream &out=std::cout);
 
   /** Parses the config file where the topics from which to read the robot's state are defined. */
   void parseConfigFile();

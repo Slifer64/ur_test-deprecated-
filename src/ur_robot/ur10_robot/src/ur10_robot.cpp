@@ -44,7 +44,6 @@ namespace ur10_
 
     mode = ur10_::Mode::POSITION_CONTROL;
 
-    printRobotStateThread_running = false;
     logging_on = false;
     cycle = 0.008; // control cycle of 8 ms
 
@@ -55,23 +54,25 @@ namespace ur10_
 
   }
 
+  Robot::~Robot()
+  {
+    shutdown_sem.notify();
+    if (ur_driver_thr.joinable()) ur_driver_thr.join();
+  }
+
   void Robot::runUrDriver()
   {
-    ur_::Semaphore sem;
+    ur_::Semaphore start_ur_driver_sem;
 
-
-    ur_driver_thr = std::thread( [this, &sem]()
+    ur_driver_thr = std::thread( [this, &start_ur_driver_sem]()
     {
     	ur_::RosWrapper interface(this->robot_ip, this->reverse_port);
-      sem.notify();
-
-      shutdown_sem.wait();
-
-    	ros::waitForShutdown();
+      start_ur_driver_sem.notify();
+    	//ros::waitForShutdown();
+      this->shutdown_sem.wait();
     });
 
-    sem.wait();
-
+    start_ur_driver_sem.wait();
   }
 
   void Robot::parseConfigFile()
@@ -96,15 +97,6 @@ namespace ur10_
 
     if (!parser.getParam("tool_frame", tool_frame))
       throw std::ios_base::failure("ur10_::Robot::getParam(tool_frame) could not be retrieved.\n");
-  }
-
-
-  Robot::~Robot()
-  {
-    shutdown_sem.notify();
-
-    if (ur_driver_thr.joinable()) ur_driver_thr.join();
-    if (printRobotState_thread.joinable()) printRobotState_thread.join();
   }
 
   void Robot::setMode(const ur10_::Mode &mode)
@@ -311,7 +303,8 @@ namespace ur10_
       timer.tic();
     }
 
-    std::unique_lock<std::mutex> robotState_lck(this->robotState_mtx);
+    std::mutex robotState_mtx;
+    std::unique_lock<std::mutex> robotState_lck(robotState_mtx);
 
     ros::spinOnce();
     // spinner.start();
@@ -381,55 +374,6 @@ namespace ur10_
      }
 
   }
-
-  void Robot::printRobotState(std::ostream &out) const
-  {
-    out << "===============================\n";
-    out << "=======   Robot state  ========\n";
-    out << "===============================\n";
-    out << "time: " << getTime() << " sec\n";
-    out << "joint pos: " << getJointPosition().t()*180/arma::datum::pi << "\n";
-    out << "joint vel: " << getJointVelocity().t() << "\n";
-    out << "joint Torques: " << getJointTorque().t() << "\n";
-
-    out << "Cart pos: " << getTaskPosition().t() << "\n";
-    out << "Cart orient: " << getTaskOrientation().t() << "\n";
-    out << "Task velocity: " << getTaskVelocity().t() << "\n";
-    out << "Wrench: " << getTaskWrench().t() << "\n";
-
-    out << "===============================\n";
-    out << "===============================\n";
-  }
-
-  void Robot::printRobotStateThreadFun(double freq, std::ostream &out)
-  {
-    ros::Rate loop_rate(freq);
-    std::unique_lock<std::mutex> robotState_lck(this->robotState_mtx, std::defer_lock);
-
-    while (printRobotStateThread_running)
-    {
-      robotState_lck.lock();
-      this->printRobotState(out);
-      robotState_lck.unlock();
-      loop_rate.sleep();
-    }
-  }
-
-  void Robot::launch_printRobotStateThread(double freq, std::ostream &out)
-  {
-    if (printRobotStateThread_running == false)
-    {
-      printRobotStateThread_running = true;
-      printRobotState_thread =  std::thread(&Robot::printRobotStateThreadFun, this, freq, std::ref(out));
-    }
-  }
-
-  void Robot::stop_printRobotStateThread()
-  {
-    printRobotStateThread_running = false;
-    if (printRobotState_thread.joinable()) printRobotState_thread.join();
-  }
-
 
   void Robot::load_URScript(const std::string &path_to_URScript)
   {

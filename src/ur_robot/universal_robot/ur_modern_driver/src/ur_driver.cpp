@@ -18,8 +18,7 @@
 
 #include "ur_modern_driver/ur_driver.h"
 
-UrDriver::UrDriver(std::condition_variable& rt_msg_cond,
-		std::condition_variable& msg_cond, std::string host,
+UrDriver::UrDriver(ur_::Semaphore &rt_msg_sem, ur_::Semaphore &msg_sem, std::string host,
 		unsigned int reverse_port, double servoj_time,
 		unsigned int safety_count_max, double max_time_step, double min_payload,
 		double max_payload, double servoj_lookahead_time, double servoj_gain) :
@@ -33,9 +32,9 @@ UrDriver::UrDriver(std::condition_variable& rt_msg_cond,
 	firmware_version_ = 0;
 	reverse_connected_ = false;
 	executing_traj_ = false;
-	rt_interface_ = new UrRealtimeCommunication(rt_msg_cond, host, safety_count_max);
+	rt_interface_ = new UrRealtimeCommunication(rt_msg_sem, host, safety_count_max);
 	new_sockfd_ = -1;
-	sec_interface_ = new UrCommunication(msg_cond, host);
+	sec_interface_ = new UrCommunication(msg_sem, host);
 
 	incoming_sockfd_ = socket(AF_INET, SOCK_STREAM, 0);
 	if (incoming_sockfd_ < 0) print_fatal("ERROR opening socket for reverse communication");
@@ -188,9 +187,8 @@ bool UrDriver::uploadProg()
 	cmd_str += "\t\t\t\tsync()\n";
 	cmd_str += "\t\t\telif state == SERVO_RUNNING:\n";
 
-	if (sec_interface_->robot_state_->getVersion() >= 3.1)
-		sprintf(buf, "\t\t\t\tservoj(q, t=%.4f, lookahead_time=%.4f, gain=%.0f)\n",
-				servoj_time_, servoj_lookahead_time_, servoj_gain_);
+	if (sec_interface_->robot_state_.getVersion() >= 3.1)
+		sprintf(buf, "\t\t\t\tservoj(q, t=%.4f, lookahead_time=%.4f, gain=%.0f)\n", servoj_time_, servoj_lookahead_time_, servoj_gain_);
 	else
 		sprintf(buf, "\t\t\t\tservoj(q, t=%.4f)\n", servoj_time_);
 	cmd_str += buf;
@@ -201,8 +199,7 @@ bool UrDriver::uploadProg()
 	cmd_str += "\t\tend\n";
 	cmd_str += "\tend\n";
 
-	sprintf(buf, "\tsocket_open(\"%s\", %i)\n", ip_addr_.c_str(),
-			REVERSE_PORT_);
+	sprintf(buf, "\tsocket_open(\"%s\", %i)\n", ip_addr_.c_str(), REVERSE_PORT_);
 	cmd_str += buf;
 
 	cmd_str += "\tthread_servo = run servoThread()\n";
@@ -247,7 +244,7 @@ bool UrDriver::openServo()
 void UrDriver::closeServo(std::vector<double> positions)
 {
 	if (positions.size() != 6)
-		UrDriver::servoj(rt_interface_->robot_state_->getQActual(), 0);
+		UrDriver::servoj(rt_interface_->robot_state_.getQActual(), 0);
 	else
 		UrDriver::servoj(positions, 0);
 
@@ -259,8 +256,8 @@ bool UrDriver::start()
 {
 	if (!sec_interface_->start())
 		return false;
-	firmware_version_ = sec_interface_->robot_state_->getVersion();
-	rt_interface_->robot_state_->setVersion(firmware_version_);
+	firmware_version_ = sec_interface_->robot_state_.getVersion();
+	rt_interface_->robot_state_.setVersion(firmware_version_);
 	if (!rt_interface_->start())
 		return false;
 	ip_addr_ = rt_interface_->getLocalIp();

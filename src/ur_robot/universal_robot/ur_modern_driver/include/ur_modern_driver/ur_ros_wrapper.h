@@ -50,8 +50,8 @@ class RosWrapper
 protected:
   bool keep_alive;
 	UrDriver *robot_;
-	std::condition_variable rt_msg_cond_;
-	std::condition_variable msg_cond_;
+	Semaphore rt_msg_sem; //std::condition_variable rt_msg_cond_;
+  Semaphore msg_sem; //std::condition_variable msg_cond_;
 	ros::NodeHandle nh_;
 	actionlib::ActionServer<control_msgs::FollowJointTrajectoryAction> as_;
 	actionlib::ServerGoalHandle<control_msgs::FollowJointTrajectoryAction> goal_handle_;

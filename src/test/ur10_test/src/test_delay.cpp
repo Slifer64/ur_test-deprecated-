@@ -38,22 +38,22 @@ int main(int argc, char** argv)
 
   robot->waitNextCycle();
   q = robot->getJointPosition();
-  double duration = std::max(arma::max(arma::abs(q_start-q))*14.0/3.14159, 6.5);
+  double duration = std::max(arma::max(arma::abs(q_start-q))*10.0/3.14159, 0.5);
   std::cout << io_::bold << io_::cyan << "The robot will move to its initial pose in " << duration << " sec.\n" << io_::reset;
   robot->setJointsTrajectory(q_start, duration);
   std::cout << io_::bold << io_::cyan << "Initial pose reached!\n" << io_::reset;
 
   if (!ros::ok()) exit(-1);
   
-  robot->waitNextCycle();
-  q = robot->getJointPosition();
-  duration = std::max(arma::max(arma::abs(q_end-q))*14.0/3.14159, 6.5);
-  std::cout << io_::bold << io_::cyan << "The robot will move to its final pose in " << duration << " sec.\n" << io_::reset;
-  robot->setJointsTrajectory(q_end, duration);
-  std::cout << io_::bold << io_::cyan << "*** Final pose reached! ***\n" << io_::reset;
+//  robot->waitNextCycle();
+//  q = robot->getJointPosition();
+//  duration = std::max(arma::max(arma::abs(q_end-q))*10.0/3.14159, 6.5);
+//  std::cout << io_::bold << io_::cyan << "The robot will move to its final pose in " << duration << " sec.\n" << io_::reset;
+//  robot->setJointsTrajectory(q_end, duration);
+//  std::cout << io_::bold << io_::cyan << "*** Final pose reached! ***\n" << io_::reset;
 
   // ===========  Shutdown ROS node  ==================
-  ros::shutdown();
+  // ros::shutdown();
 
   return 0;
 }

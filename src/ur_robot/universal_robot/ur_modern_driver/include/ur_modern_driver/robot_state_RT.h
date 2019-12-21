@@ -62,20 +62,19 @@ private:
 
 	std::mutex val_lock_; // Locks the variables while unpack parses data;
 
-	std::condition_variable* pMsg_cond_; //Signals that new vars are available
 	bool data_published_; //to avoid spurious wakes
 	bool controller_updated_; //to avoid spurious wakes
 
-	std::vector<double> unpackVector(uint8_t * buf, int start_index,
-			int nr_of_vals);
+	std::vector<double> unpackVector(uint8_t * buf, int start_index, int nr_of_vals);
 	std::vector<bool> unpackDigitalInputBits(int64_t data);
 	double ntohd(uint64_t nf);
 
 public:
-	RobotStateRT(std::condition_variable& msg_cond);
+	RobotStateRT();
 	~RobotStateRT();
 	double getVersion();
 	double getTime();
+
 	std::vector<double> getQTarget();
 	std::vector<double> getQdTarget();
 	std::vector<double> getQddTarget();

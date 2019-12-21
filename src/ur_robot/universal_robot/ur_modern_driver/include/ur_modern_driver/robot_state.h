@@ -156,15 +156,14 @@ private:
 
 	std::recursive_mutex val_lock_; // Locks the variables while unpack parses data;
 
-	std::condition_variable* pMsg_cond_; //Signals that new vars are available
+	// std::condition_variable* pMsg_cond_; //Signals that new vars are available
 	bool new_data_available_; //to avoid spurious wakes
 	unsigned char robot_mode_running_;
 
 	double ntohd(uint64_t nf);
 
 public:
-	RobotState(std::condition_variable& msg_cond);
-	~RobotState();
+  RobotState(); //RobotState(std::condition_variable& msg_cond);
 	double getVersion();
 	double getTime();
 	std::vector<double> getQTarget();

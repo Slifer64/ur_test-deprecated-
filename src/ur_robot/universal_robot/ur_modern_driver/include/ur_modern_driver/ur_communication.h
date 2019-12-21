@@ -40,8 +40,10 @@
 #include <fcntl.h>
 #include <sys/types.h>
 
+#include <ur_modern_driver/utils.h>
 
-class UrCommunication {
+class UrCommunication
+{
 private:
 	int pri_sockfd_, sec_sockfd_;
 	struct sockaddr_in pri_serv_addr_, sec_serv_addr_;
@@ -51,11 +53,13 @@ private:
 	int flag_;
 	void run();
 
+  ur_::Semaphore *msg_sem_ptr;
+
 public:
 	bool connected_;
-	RobotState* robot_state_;
+	RobotState robot_state_;
 
-	UrCommunication(std::condition_variable& msg_cond, std::string host);
+	UrCommunication(ur_::Semaphore &msg_sem, std::string host);
 	~UrCommunication();
 	bool start();
 	void halt();
