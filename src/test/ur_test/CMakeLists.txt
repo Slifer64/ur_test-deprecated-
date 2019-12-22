@@ -43,7 +43,7 @@ include_directories(
 SET(BUILD_LIBS
   ${catkin_LIBRARIES}
   armadillo
-  io-lib
+  io_lib
   ur_robot
 )
 
@@ -61,20 +61,6 @@ target_link_libraries(test_delay ${BUILD_LIBS} )
 #add_executable(run_urscript src/run_urscript.cpp ${INCLUDE_LIST} ${SRC_LIST} )
 #add_dependencies(run_urscript ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 #target_link_libraries(run_urscript ${BUILD_LIBS} )
-
-# *************************************************
-# *************************************************
-
-#add_executable(test_logging src/test_logging.cpp ${INCLUDE_LIST} ${SRC_LIST} )
-#add_dependencies(test_logging ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(test_logging ${BUILD_LIBS})
-
-# *************************************************
-# *************************************************
-
-#add_executable(simple_control src/simple_control.cpp ${INCLUDE_LIST} ${SRC_LIST} )
-#add_dependencies(simple_control ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(simple_control ${BUILD_LIBS})
 
 # *************************************************
 # *************************************************

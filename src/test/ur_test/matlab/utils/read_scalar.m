@@ -7,7 +7,7 @@
 %  @param[in] type: The class type of 'scalar' (optional, default = 'double').
 function scalar = read_scalar(fid, binary, type)
 
-    if (nargin < 2), binary = false; end % text format
+    if (nargin < 2), binary = true; end % text format
     if (nargin < 3), type = 'double'; end
 	
     if (binary)

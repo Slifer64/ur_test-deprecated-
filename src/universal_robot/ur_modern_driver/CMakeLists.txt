@@ -188,6 +188,7 @@ set(${PROJECT_NAME}_SOURCES
  )
 
  target_link_libraries(ur_modern_driver
+  armadillo
   ${catkin_LIBRARIES}
  )
 

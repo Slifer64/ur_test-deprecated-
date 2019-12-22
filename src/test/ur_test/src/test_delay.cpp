@@ -14,6 +14,8 @@
 #include <io_lib/io_lib.h>
 #include <ur_robot/ur_robot.h>
 
+using namespace as64_;
+
 int main(int argc, char** argv)
 {
   // ===========  Initialize the ROS node  ==================
@@ -40,18 +42,21 @@ int main(int argc, char** argv)
   q = robot->getJointsPosition();
   double duration = std::max(arma::max(arma::abs(q_start-q))*14.0/3.14159, 6.5);
   std::cout << io_::bold << io_::cyan << "The robot will move to its initial pose in " << duration << " sec.\n" << io_::reset;
+
   robot->setJointsTrajectory(q_start, duration);
   std::cout << io_::bold << io_::cyan << "Initial pose reached!\n" << io_::reset;
-
   if (!ros::ok()) exit(-1);
   
   robot->waitNextCycle();
   q = robot->getJointsPosition();
   duration = std::max(arma::max(arma::abs(q_end-q))*14.0/3.14159, 6.5);
   std::cout << io_::bold << io_::cyan << "The robot will move to its final pose in " << duration << " sec.\n" << io_::reset;
+  robot->startLogging();
   robot->setJointsTrajectory(q_end, duration);
+  robot->stopLogging();
   std::cout << io_::bold << io_::cyan << "*** Final pose reached! ***\n" << io_::reset;
 
+  robot->saveLoggedData(ros::package::getPath("ur_test") + "/data/logged_data.bin");
   // ===========  Shutdown ROS node  ==================
   // ros::shutdown();
 

@@ -55,7 +55,7 @@ add_dependencies(ur_robot
 target_link_libraries(ur_robot
   ${catkin_LIBRARIES}
   armadillo
-  io-lib
+  io_lib
   ur10_kin
   ur_modern_driver
 )

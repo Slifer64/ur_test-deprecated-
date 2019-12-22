@@ -10,6 +10,8 @@
 #include <ur_kinematics/ur_kin.h>
 #include <ur_kinematics/ikfast.h>
 
+using namespace as64_;
+
 namespace ur_
 {
 
@@ -28,6 +30,7 @@ namespace ur_
   Robot::Robot(const std::string &robot_ip, int reverse_port)
   {
     joint_prefix = "";
+    err_msg = "";
 
     parseConfigFile();
 
@@ -44,8 +47,6 @@ namespace ur_
     runUrDriver();
 
     mode = ur_::Mode::POSITION_CONTROL;
-
-    logging_on = false;
 
     ros::Duration(4.0).sleep(); // needed to let UR initialize
 
@@ -102,8 +103,8 @@ namespace ur_
 
   void Robot::parseConfigFile()
   {
-    std::string params_path = ros::package::getPath("ur_robot") + "/config/ur_config.yml";
-    param_::Parser parser(params_path);
+//    std::string params_path = ros::package::getPath("ur_robot") + "/config/ur_config.yml";
+//    param_::Parser parser(params_path);
 
 //    if (!parser.getParam("command_ur_topic", command_ur_topic))
 //      throw std::ios_base::failure("ur_::Robot::getParam(command_ur_topic) could not be retrieved.\n");
@@ -137,16 +138,16 @@ namespace ur_
         // this->force_mode();
         break;
       case ur_::Mode::POSITION_CONTROL:
-        this->position_control_mode();
+        this->setModeToPosCtrl();
         break;
       case ur_::Mode::VELOCITY_CONTROL:
-        this->velocity_control_mode();
+        this->setModeToVelCtrl();
         break;
     }
     this->mode = mode;
   }
 
-  void Robot::position_control_mode()
+  void Robot::setModeToPosCtrl()
   {
     if (this->getMode() != ur_::Mode::POSITION_CONTROL)
     {
@@ -155,7 +156,7 @@ namespace ur_
     }
   }
 
-  void Robot::velocity_control_mode()
+  void Robot::setModeToVelCtrl()
   {
     if (this->getMode() != ur_::Mode::VELOCITY_CONTROL)
     {
@@ -289,11 +290,6 @@ namespace ur_
     ur_driver->setUrScriptCmd(ur_script);
   }
 
-  void Robot::getRobotState(RobotState &robotState) const
-  {
-    robotState = this->rSt;
-  }
-
   void Robot::command_mode(const std::string &mode) const
   {
     std::string cmd;
@@ -303,41 +299,29 @@ namespace ur_
 
   void Robot::startLogging()
   {
-    logging_on = true;
+    ur_driver->log_data_ = true;
   }
 
   void Robot::stopLogging()
   {
-    logging_on = false;
+    ur_driver->log_data_ = false;
   }
 
-  void Robot::saveLoggedData(const std::string filename, bool binary, int precision)
+  void Robot::saveLoggedData(const std::string filename)
   {
-    std::ofstream out(filename, std::ios::out);
-    if (!out) throw std::ios_base::failure("Couldn't create file \"" + filename + "\"...\n");
+    std::ofstream out(filename, std::ios::out | std::ios::binary);
+    if (!out) throw std::ios_base::failure("[ur_::Robot::saveLoggedData]: Couldn't create file \"" + filename + "\"...\n");
 
-    io_::write_mat(log_data.Time, out, binary, precision);
-    io_::write_mat(log_data.q_data, out, binary, precision);
-    io_::write_mat(log_data.dq_data, out, binary, precision);
-    io_::write_mat(log_data.pos_data, out, binary, precision);
-    io_::write_mat(log_data.Q_data, out, binary, precision);
-    io_::write_mat(log_data.V_data, out, binary, precision);
-    io_::write_mat(log_data.wrench_data, out, binary, precision);
-    io_::write_mat(log_data.jTorques_data, out, binary, precision);
+    ur_driver->time_data.resize(ur_driver->n_data);
+    ur_driver->joint_vel_data.resize(6, ur_driver->n_data);
+    ur_driver->joint_vel_cmd_data.resize(6, ur_driver->n_data);
+
+    io_::write_mat(ur_driver->time_data, out);
+    io_::write_mat(ur_driver->joint_vel_data, out);
+    //io_::write_mat(ur_driver->joint_target_vel_data, out);
+    io_::write_mat(ur_driver->joint_vel_cmd_data, out);
 
     out.close();
-  }
-
-  void Robot::logDataStep()
-  {
-    log_data.Time = arma::join_horiz(log_data.Time, arma::mat({0}));
-    log_data.q_data = arma::join_horiz(log_data.q_data, getJointsPosition());
-    log_data.dq_data = arma::join_horiz(log_data.dq_data, getJointsVelocity());
-    log_data.pos_data = arma::join_horiz(log_data.pos_data, getTaskPosition());
-    log_data.Q_data = arma::join_horiz(log_data.Q_data, getTaskOrientation());
-    log_data.V_data = arma::join_horiz(log_data.V_data, getTaskVelocity());
-    log_data.wrench_data = arma::join_horiz(log_data.wrench_data, getTaskWrench());
-    log_data.jTorques_data = arma::join_horiz(log_data.jTorques_data, getJointsTorque());
   }
 
   // void Robot::setJointsTrajectory(const arma::vec &qT, double duration)
@@ -368,7 +352,7 @@ namespace ur_
     {
       if (!isOk())
       {
-        std::cerr << "An error occured on the robot!\n";
+        std::cerr << getErrMsg();
         return false;
       }
 
@@ -442,6 +426,7 @@ namespace ur_
 
   void Robot::setJointsVelocity(const arma::vec &dqd)
   {
+    ur_driver->joint_vel_cmd = dqd;
     this->speedj(dqd, 6.0, this->cycle);
   }
 
@@ -458,15 +443,24 @@ namespace ur_
     // this->speedl(Twist, 1.5, this->cycle);
   }
 
-  arma::vec Robot::getTaskWrench() const
+  bool Robot::isOk() const
   {
-    arma::mat T_robot_ee = this->getTaskPose();
-    arma::vec wrench(6);
+    if (ur_driver->isEmergencyStopped())
+    {
+      *(const_cast<std::string *>(&err_msg)) = "EMERGENCY STOP!\n";
+      return false;
+    }
 
-    wrench.subvec(0,2) = T_robot_ee.submat(0,0,2,2)*rSt.wrench.subvec(0,2);
-    wrench.subvec(3,5) = T_robot_ee.submat(0,0,2,2)*rSt.wrench.subvec(3,5);
+    if (ur_driver->isProtectiveStopped())
+    {
+      *(const_cast<std::string *>(&err_msg)) = "PROTECTIVE STOP!\n";
+      return false;
+    }
 
-    return wrench;
+    *(const_cast<std::string *>(&err_msg)) = "";
+
+    return true;
   }
+
 
 } // namespace ur_

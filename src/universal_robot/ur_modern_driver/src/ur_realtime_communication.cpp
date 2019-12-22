@@ -131,14 +131,14 @@ void UrRealtimeCommunication::run()
 	print_debug("Realtime port: Got connection");
 	connected_ = true;
 
-	ur_::Timer timer;
-	std::vector<double> times_vec;
+	//ur_::Timer timer;
+	//std::vector<double> times_vec;
 
 	while (keepalive_)
 	{
 		while (connected_ && keepalive_)
 		{
-      timer.start();
+      //timer.start();
 
 			timeout.tv_sec = 0; //do this each loop as selects modifies timeout
 			timeout.tv_usec = 500000; // timeout of 0.5 sec
@@ -158,10 +158,8 @@ void UrRealtimeCommunication::run()
 				close(sockfd_);
 			}
 
-			double elaps_time = timer.elapsedMicroSec();
-			times_vec.push_back(elaps_time);
-
-			// std::cerr << "elaps t = " << elaps_time/1000 << " ms\n";
+			//double elaps_time = timer.elapsedMicroSec();
+			//times_vec.push_back(elaps_time);
 		}
 
 		if (keepalive_)
@@ -198,26 +196,24 @@ void UrRealtimeCommunication::run()
 		}
 	}
 
-	int N_times = times_vec.size();
-	double mean_time=0, max_time = 0, min_time = 1e12;
-  for (int i=0;i<N_times; i++)
-  {
-    double elaps_time = times_vec[i];
-    mean_time += elaps_time;
-    if (elaps_time > max_time) max_time = elaps_time;
-    if (elaps_time < min_time) min_time = elaps_time;
-  }
-  mean_time /= N_times;
-  std::cerr << "======================================\n";
-  std::cerr << "mean_time: " << mean_time/1000 << " ms\n";
-  std::cerr << "min_time: " << min_time/1000 << " ms\n";
-  std::cerr << "max_time: " << max_time/1000 << " ms\n";
-  std::cerr << "======================================\n";
+//	int N_times = times_vec.size();
+//	double mean_time=0, max_time = 0, min_time = 1e12;
+//  for (int i=0;i<N_times; i++)
+//  {
+//    double elaps_time = times_vec[i];
+//    mean_time += elaps_time;
+//    if (elaps_time > max_time) max_time = elaps_time;
+//    if (elaps_time < min_time) min_time = elaps_time;
+//  }
+//  mean_time /= N_times;
+//  std::cerr << "======================================\n";
+//  std::cerr << "mean_time: " << mean_time/1000 << " ms\n";
+//  std::cerr << "min_time: " << min_time/1000 << " ms\n";
+//  std::cerr << "max_time: " << max_time/1000 << " ms\n";
+//  std::cerr << "======================================\n";
 
 	setSpeed(0., 0., 0., 0., 0., 0.);
 	close(sockfd_);
-
-	// std::cerr << "===> [UrRealtimeCommunication::run()]: FINISHED!\n";
 }
 
 void UrRealtimeCommunication::setSafetyCountMax(uint inp)

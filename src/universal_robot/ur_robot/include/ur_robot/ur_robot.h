@@ -52,58 +52,6 @@ enum Mode
  */
 class Robot
 {
-
-  /**
-   * Struct with the state of the robot.
-   * The state includes the following:
-   * - current time stamp.
-   * - joint positions, velocities and torques
-   * - end-effector pose, twist and wrench
-   * - jacobian
-   */
-  struct RobotState
-  {
-    uint64_t timestamp_sec;
-    uint64_t timestamp_nsec;
-
-    arma::vec q, dq;
-    arma::mat pose;
-    arma::mat Jrobot;
-    arma::vec pos, Q;
-    arma::vec v_lin, v_rot;
-    arma::vec wrench;
-    arma::vec jTorques;
-
-    RobotState()
-    {
-      q.resize(6);
-      dq.resize(6);
-      pose.resize(4,4);
-      pos.resize(3);
-      Q.resize(4);
-      v_lin.resize(3);
-      v_rot.resize(3);
-      wrench.resize(6);
-      jTorques.resize(6);
-    }
-  };
-
-  /**
-   * Struct with the data that are logged, which are:
-   * - time.
-   * - joint positions, velocities and torques
-   * - end-effector pose, twist and wrench
-   */
-  struct LoggedData
-  {
-    arma::rowvec Time;
-    arma::mat q_data, dq_data;
-    arma::mat pos_data, Q_data;
-    arma::mat V_data;
-    arma::mat wrench_data;
-    arma::mat jTorques_data;
-  };
-
 public:
   /** Constructor. */
   Robot(const std::string &robot_ip="localhost", int reverse_port=50001);
@@ -155,11 +103,6 @@ public:
    */
   arma::vec getJointsPosition() const { return ur_driver->getJointPos(); }
 
-  /** Returns the robot's end-effector pose relative to the base frame as a 4x4 homogenous transform.
-   * @return 4x4 matrix with the robot's pose relative to the base frame.
-   */
-  arma::mat getTaskPose() const { return rSt.pose; }
-
   /** Returns the robot's end-effector Cartesian position relative to the base frame as a 3x1 vector.
    * @return 3x1 vector with the robot's Cartesian position relative to the base frame.
    */
@@ -183,16 +126,16 @@ public:
   /** Returns the wrench exerted on the end-effector relative to the base frame.
    * @return 6x1 vector with wrench exerted on the end-effector relative to the base frame.
    */
-  arma::vec getTaskWrench() const;
+  arma::vec getTaskWrench() const { return ur_driver->getTcpWrench(); }
 
   /** Returns the torques exerted on the robot's joints.
    * @return 6x1 vector with the torques exerted on the robot's joints.
    */
-  arma::vec getJointsTorque() const { return rSt.jTorques; }
+  arma::vec getJointsTorque() const { return ur_driver->getEffort(); }
 
   /** TODO
    */
-  arma::mat getJacobian() const { return rSt.Jrobot; }
+  arma::mat getJacobian() const { throw std::runtime_error("[ur_::Robot::getJacobian]: Not impelemented!"); }
 
   /** Sets the robot's control mode.
    * @param[in] mode The control mode to set the robot in.
@@ -233,7 +176,7 @@ public:
   /**
    * @return true if the robot is ok, false if some error occured.
    */
-  bool isOk() const { return true; }
+  bool isOk() const;
 
   /** Loads a URscript file and stores it on the memory.
    * @param[in] path_to_URScript Absolute or relative path to the UR script file.
@@ -243,11 +186,6 @@ public:
   /** Executes the URscript that is stored on the memory.
    */
   void execute_URScript() const;
-
-  /**
-   * @param[out] robotState Struct with robot's state.
-   */
-  void getRobotState(RobotState &robotState) const;
 
   /** Enables logging the robot's state in each control cycle.
    */
@@ -262,10 +200,14 @@ public:
    * @param[in] binary True to write the data in binary format, false for text format (optional, default = true).
    * param[in] precision Printing precision for text format (optional, default = 7).
    */
-  void saveLoggedData(const std::string filename, bool binary=true, int precision=7);
+  void saveLoggedData(const std::string filename);
 
+
+  std::string getErrMsg() const { return err_msg; }
 
 private:
+
+  std::string err_msg;
 
   ur_::JointStatePublisher jState_pub;
 
@@ -282,11 +224,6 @@ private:
   double cycle; ///< robot's control cycle.
 
   Mode mode; ///< robot's control mode.
-
-  bool logging_on; ///< flag that if set to true enables logging data in each control cycle.
-
-  RobotState rSt; ///< Robot state struct.
-  LoggedData log_data; ///< Log data struct.
 
   ros::NodeHandle n;
 
@@ -310,17 +247,15 @@ private:
   /** Sends a urscript command to set the robot in control mode 'mode'. */
   void command_mode(const std::string &mode) const;
 
-  /** Logs the current robot's state. */
-  void logDataStep();
-
   /** Sets the control mode in position control. */
-  void position_control_mode();
+  void setModeToPosCtrl();
 
   /** Sets the control mode in velocity control. */
-  void velocity_control_mode();
+  void setModeToVelCtrl();
 
   static arma::mat get5thOrder(double t, arma::vec p0, arma::vec pT, double totalTime);
 
+  /** For joint state publisher. */
   void addJointState(sensor_msgs::JointState &joint_state_msg);
 };
 

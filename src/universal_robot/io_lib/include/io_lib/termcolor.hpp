@@ -9,8 +9,8 @@
 //! :license: BSD, see LICENSE for details
 //!
 
-#ifndef TERMCOLOR_HPP_
-#define TERMCOLOR_HPP_
+#ifndef AS64_TERMCOLOR_HPP_
+#define AS64_TERMCOLOR_HPP_
 
 // the following snippet of code detects the current OS and
 // defines the appropriate macro that is used to wrap some
@@ -41,6 +41,9 @@
 #include <iostream>
 #include <cstdio>
 
+
+namespace as64_
+{
 
 namespace io_
 {
@@ -548,9 +551,10 @@ namespace io_
 
 } // namespace io_lib
 
+} // namespace as64_
 
 #undef TERMCOLOR_OS_WINDOWS
 #undef TERMCOLOR_OS_MACOS
 #undef TERMCOLOR_OS_LINUX
 
-#endif // TERMCOLOR_HPP_
+#endif // AS64_TERMCOLOR_HPP_

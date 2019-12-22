@@ -9,7 +9,7 @@
 %  @param[out] m: The 2D matrix
 function m = read_mat2(fid, n_rows, n_cols, binary, type)
 
-    if (nargin < 4), binary = false; end % text format
+    if (nargin < 4), binary = true; end % text format
     if (type < 5), type = 'double'; end
 
     m = zeros(int64(n_rows),int64(n_cols));

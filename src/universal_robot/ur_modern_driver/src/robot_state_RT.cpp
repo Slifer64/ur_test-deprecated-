@@ -33,7 +33,7 @@ RobotStateRT::RobotStateRT()
 	i_control_.assign(6, 0.0);
 	tool_vector_actual_.assign(6, 0.0);
 	tcp_speed_actual_.assign(6, 0.0);
-	tcp_force_.assign(6, 0.0);
+	tcp_wrench_.assign(6, 0.0);
 	tool_vector_target_.assign(6, 0.0);
 	tcp_speed_target_.assign(6, 0.0);
 	digital_input_bits_.assign(64, false);
@@ -231,11 +231,11 @@ std::vector<double> RobotStateRT::getTcpSpeedActual()
 	return ret;
 }
 
-std::vector<double> RobotStateRT::getTcpForce()
+std::vector<double> RobotStateRT::getTcpWrench()
 {
 	std::vector<double> ret;
 	val_lock_.lock();
-	ret = tcp_force_;
+	ret = tcp_wrench_;
 	val_lock_.unlock();
 	return ret;
 }
@@ -431,7 +431,7 @@ void RobotStateRT::unpack(uint8_t * buf)
 	{
 		if (version_ > 1.6) tool_accelerometer_values_ = unpackVector(buf, offset, 3);
 		offset += sizeof(double) * (3 + 15);
-		tcp_force_ = unpackVector(buf, offset, 6);
+		tcp_wrench_ = unpackVector(buf, offset, 6);
 		offset += sizeof(double) * 6;
 		tool_vector_actual_ = unpackVector(buf, offset, 6);
 		offset += sizeof(double) * 6;
@@ -445,7 +445,7 @@ void RobotStateRT::unpack(uint8_t * buf)
 		offset += sizeof(double) * 6;
 		tcp_speed_actual_ = unpackVector(buf, offset, 6);
 		offset += sizeof(double) * 6;
-		tcp_force_ = unpackVector(buf, offset, 6);
+		tcp_wrench_ = unpackVector(buf, offset, 6);
 		offset += sizeof(double) * 6;
 		tool_vector_target_ = unpackVector(buf, offset, 6);
 		offset += sizeof(double) * 6;

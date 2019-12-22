@@ -33,6 +33,8 @@
 
 #include <memory>
 
+#include <armadillo>
+
 #include <chrono>
 
 
@@ -68,25 +70,48 @@ private:
 
   ur_::Timer timer;
 
+  double t; // current timestamp
   std::vector<double> joint_pos;
   std::vector<double> joint_vel;
   std::vector<double> effort;
-  std::vector<double> tcp_force;
+  std::vector<double> tcp_wrench;
   std::vector<double> tcp_pos;
   std::vector<double> tcp_quat;
   std::vector<double> tcp_vel;
+
+  std::vector<double> joint_target_vel;
 
   std::string ur_script_cmd;
 
 public:
 
+  ur_::Timer global_timer;
+
+  arma::vec joint_vel_cmd;
+
+  bool log_data_;
+  int n_data;
+  arma::rowvec time_data;
+  arma::mat joint_vel_data;
+  arma::mat joint_target_vel_data;
+  arma::mat joint_vel_cmd_data;
+
+  bool isEmergencyStopped() const { return sec_interface_->robot_state_.isProtectiveStopped(); }
+  bool isRobotConnected() const { return sec_interface_->robot_state_.isRobotConnected(); }
+  bool isProgramRunning() const { return sec_interface_->robot_state_.isProgramRunning(); }
+  bool isProtectiveStopped() const { return sec_interface_->robot_state_.isEmergencyStopped(); }
+
+
+  double getControllerTime() const { return t; }
   std::vector<double> getJointPos() const { return joint_pos; }
   std::vector<double> getJointVel() const { return joint_vel; }
   std::vector<double> getEffort() const { return effort; }
-  std::vector<double> getTcpForce() const { return tcp_force; }
+  std::vector<double> getTcpWrench() const { return tcp_wrench; }
   std::vector<double> getTcpPos() const { return tcp_pos; }
   std::vector<double> getTcpQuat() const { return tcp_quat; }
   std::vector<double> getTcpVel() const { return tcp_vel; }
+
+  std::vector<double> getJointTargetVel() const { return joint_target_vel; }
 
 	UrRealtimeCommunication *rt_interface_;
 	UrCommunication* sec_interface_;

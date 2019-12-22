@@ -133,7 +133,7 @@ void UrHardwareInterface::read() {
 	pos = robot_->rt_interface_->robot_state_.getQActual();
 	vel = robot_->rt_interface_->robot_state_.getQdActual();
 	current = robot_->rt_interface_->robot_state_.getIActual();
-	tcp = robot_->rt_interface_->robot_state_.getTcpForce();
+	tcp = robot_->rt_interface_->robot_state_.getTcpWrench();
 	for (std::size_t i = 0; i < num_joints_; ++i) {
 		joint_position_[i] = pos[i];
 		joint_velocity_[i] = vel[i];

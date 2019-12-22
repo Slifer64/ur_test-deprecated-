@@ -15,17 +15,17 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
 )
 
-add_library(io-lib
+add_library(${PROJECT_NAME}
   src/io_utils.cpp
-  src/parser.cpp
+  src/xml_parser.cpp
 )
 
-add_dependencies(io-lib
+add_dependencies(${PROJECT_NAME}
   ${${PROJECT_NAME}_EXPORTED_TARGETS}
   ${catkin_EXPORTED_TARGETS}
 )
 
-target_link_libraries(io-lib
+target_link_libraries(${PROJECT_NAME}
   ${catkin_LIBRARIES}
   armadillo
 )

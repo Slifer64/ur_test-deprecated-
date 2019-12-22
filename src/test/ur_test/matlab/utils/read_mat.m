@@ -7,7 +7,7 @@
 %  @param[out] m: The 2D matrix
 function m = read_mat(fid, binary, type)
 
-    if (nargin < 2), binary = false; end % text format
+    if (nargin < 2), binary = true; end % text format
     if (nargin < 3), type = 'double'; end
     
     n_rows = read_scalar(fid, binary, 'int64');

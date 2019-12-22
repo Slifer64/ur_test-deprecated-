@@ -28,6 +28,17 @@ UrDriver::UrDriver(std::string host, unsigned int reverse_port, double servoj_ti
 		REVERSE_PORT_(reverse_port), maximum_time_step_(max_time_step), minimum_payload_(min_payload),
 		maximum_payload_(max_payload), servoj_time_(servoj_time), servoj_lookahead_time_(servoj_lookahead_time), servoj_gain_(servoj_gain)
 {
+  log_data_ = false;
+  t = 0;
+  joint_pos = {6, 0.0};
+  joint_vel = {6, 0.0};
+  effort = {6, 0.0};
+  tcp_wrench = {6, 0.0};
+  tcp_pos = {3, 0.0};
+  tcp_quat = {4, 0.0};
+  tcp_vel = {6, 0.0};
+  joint_target_vel = {6, 0.0};
+
   if((reverse_port <= 0) or (reverse_port >= 65535))
   {
     print_warning("Reverse port value is not valid (Use number between 1 and 65534. Using default value of 50001");
@@ -433,15 +444,26 @@ void UrDriver::readRTMsg()
   unsigned long ctrl_cycle = servoj_time_*1e9;
   timer.start();
 
+  global_timer.start();
+
+  n_data = 0;
+  time_data.resize(2000);
+  joint_vel_data.resize(6, 2000);
+  joint_vel_cmd_data.resize(6, 2000);
+
   while (keep_alive_)
   {
     rt_msg_sem.wait(); // wait for new data to arrive...
+
+    t = rt_interface_->robot_state_.getControllerTimer();
 
     joint_pos = rt_interface_->robot_state_.getQActual();
     for (unsigned int i = 0; i < joint_pos.size(); i++) joint_pos[i] += joint_offsets_[i];
     joint_vel = rt_interface_->robot_state_.getQdActual();
     effort = rt_interface_->robot_state_.getIActual();
-    tcp_force = rt_interface_->robot_state_.getTcpForce();
+    tcp_wrench = rt_interface_->robot_state_.getTcpWrench();
+
+    joint_target_vel = rt_interface_->robot_state_.getQdTarget();
 
     // Tool vector: Actual Cartesian coordinates of the tool: (x,y,z,rx,ry,rz),
     // where rx, ry and rz is a rotation vector representation of the tool orientation
@@ -479,6 +501,18 @@ void UrDriver::readRTMsg()
     tcp_vel = rt_interface_->robot_state_.getTcpSpeedActual();
 
     rt_interface_->addCommandToQueue(ur_script_cmd);
+
+    if (log_data_)
+    {
+//      time_data = arma::join_horiz(time_data, arma::vec{t});
+//      joint_vel_data = arma::join_horiz(joint_vel_data, arma::vec{joint_vel});
+//      //joint_target_vel_data = arma::join_horiz(joint_target_vel_data, arma::vec{joint_target_vel});
+//      joint_vel_cmd_data = arma::join_horiz(joint_vel_cmd_data, arma::vec{joint_vel_cmd});
+      time_data(n_data) = global_timer.elapsedMilliSec();
+      joint_vel_data.col(n_data) = arma::vec{joint_vel};
+      joint_vel_cmd_data.col(n_data) = arma::vec{joint_vel_cmd};
+      n_data++;
+    }
 
     unsigned long elaps_time = timer.elapsedNanoSec();
 
