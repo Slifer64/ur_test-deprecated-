@@ -131,8 +131,9 @@ void UrRealtimeCommunication::run()
 	print_debug("Realtime port: Got connection");
 	connected_ = true;
 
-	//ur_::Timer timer;
-	//std::vector<double> times_vec;
+	ur_::Timer timer;
+	std::vector<double> times_vec(2000);
+	int n_data = 0;
 
 	while (keepalive_)
 	{
@@ -158,8 +159,9 @@ void UrRealtimeCommunication::run()
 				close(sockfd_);
 			}
 
-			//double elaps_time = timer.elapsedMicroSec();
-			//times_vec.push_back(elaps_time);
+			double elaps_time = timer.elapsedMicroSec();
+			times_vec.push_back(elaps_time);
+      times_vec[n_data++] = timer.elapsedMicroSec();
 		}
 
 		if (keepalive_)

@@ -5,8 +5,6 @@ add_definitions( -DROS_BUILD )
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  hardware_interface
-  controller_manager
   actionlib
   control_msgs
   geometry_msgs
@@ -139,12 +137,6 @@ include_directories(include
 
 ## Declare a C++ library
 
-# Hardware Interface
-add_library(ur_hardware_interface src/ur_hardware_interface.cpp)
-target_link_libraries(ur_hardware_interface
-  ${catkin_LIBRARIES}
-)
-
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -152,7 +144,6 @@ target_link_libraries(ur_hardware_interface
 
 ## Declare a C++ executable
 set(${PROJECT_NAME}_SOURCES
-    #src/ur_ros_wrapper.cpp
     src/ur_driver.cpp
     src/ur_realtime_communication.cpp
     src/ur_communication.cpp
@@ -161,8 +152,6 @@ set(${PROJECT_NAME}_SOURCES
     src/do_output.cpp
     src/utils.cpp
 )
-#add_executable(ur_driver src/run_ur_driver.cpp ${${PROJECT_NAME}_SOURCES})
-
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
@@ -192,21 +181,3 @@ set(${PROJECT_NAME}_SOURCES
   ${catkin_LIBRARIES}
  )
 
-#############
-## Install ##
-#############
-
-#install(DIRECTORY launch/ DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch)
-#install(DIRECTORY config/ DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/config)
-#
-### Mark executables and/or libraries for installation
-#install(TARGETS ur_driver ur_hardware_interface
-#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-#)
-#
-### Mark cpp header files for installation
-#install(DIRECTORY include/${PROJECT_NAME}/
-#  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#  FILES_MATCHING PATTERN "*.h"
-#)
